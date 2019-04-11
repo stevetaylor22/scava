@@ -1,4 +1,3 @@
-package org.eclipse.scava.crossflow;
 /*******************************************************************************
  * Copyright (c) 2008 The University of York.
  * This program and the accompanying materials
@@ -9,6 +8,7 @@ package org.eclipse.scava.crossflow;
  *     Dimitrios Kolovos - initial API and implementation
  *     Konstantinos Barmpis - adaption for CROSSFLOW
  ******************************************************************************/
+package org.eclipse.scava.crossflow;
 
 import java.io.File;
 import java.net.URI;
@@ -31,7 +31,7 @@ import org.eclipse.epsilon.eol.models.IRelativePathResolver;
 public class GenerateBaseClasses {
 
 	protected IEolModule module;
-	protected List<Variable> parameters = new ArrayList<Variable>();
+	protected List<Variable> parameters = new ArrayList<>();
 
 	protected Object result;
 
@@ -64,9 +64,7 @@ public class GenerateBaseClasses {
 			module.getContext().getModelRepository().addModel(model);
 		}
 
-		for (Variable parameter : parameters) {
-			module.getContext().getFrameStack().put(parameter);
-		}
+		module.getContext().getFrameStack().put(parameters);
 
 		result = execute(module);
 
@@ -103,17 +101,8 @@ public class GenerateBaseClasses {
 	}
 
 	protected URI getFileURI(String fileName) throws URISyntaxException {
-
 		URI binUri = GenerateBaseClasses.class.getResource(fileName).toURI();
-		URI uri = null;
-
-		if (binUri.toString().indexOf("bin") > -1) {
-			uri = new URI(binUri.toString().replaceAll("bin", "src"));
-		} else {
-			uri = binUri;
-		}
-
-		return uri;
+		return new URI(binUri.toString().replace("bin", "src"));
 	}
 
 	public IEolModule createModule() {
@@ -127,7 +116,7 @@ public class GenerateBaseClasses {
 	}
 
 	public List<IModel> getModels() throws Exception {
-		List<IModel> models = new ArrayList<IModel>();
+		List<IModel> models = new ArrayList<>(2);
 		models.add(createAndLoadAnEmfModel("org.eclipse.scava.crossflow",
 				modelRelativePath, "Model", true,
 				false, false));
@@ -137,10 +126,12 @@ public class GenerateBaseClasses {
 
 	private EmfModel createAndLoadAnEmfModel(String metamodelURI, String modelFile, String modelName,
 			boolean readOnLoad, boolean storeOnDisposal, boolean isCached) throws EolModelLoadingException {
+		modelFile = modelFile.replace("\\", "/");
+		String filePrefix = "file://" + (modelFile.endsWith("/") ? "" : "/");
 		EmfModel theModel = new EmfModel();
 		StringProperties properties = new StringProperties();
 		properties.put(EmfModel.PROPERTY_METAMODEL_URI, metamodelURI);
-		properties.put(EmfModel.PROPERTY_MODEL_FILE, modelFile);
+		properties.put(EmfModel.PROPERTY_MODEL_URI, filePrefix + modelFile);
 		properties.put(EmfModel.PROPERTY_NAME, modelName);
 		properties.put(EmfModel.PROPERTY_READONLOAD, readOnLoad + "");
 		properties.put(EmfModel.PROPERTY_STOREONDISPOSAL, storeOnDisposal + "");

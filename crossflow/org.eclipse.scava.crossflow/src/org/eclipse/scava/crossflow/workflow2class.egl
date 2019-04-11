@@ -12,10 +12,8 @@ import java.util.List;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-
 import org.apache.activemq.broker.BrokerFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.eclipse.scava.crossflow.runtime.utils.ParallelList;
@@ -116,7 +114,7 @@ public class [%=w.name%] extends Workflow {
 	 * @param delay
 	 */
 	@Override
-	public void run(int delay) throws Exception {
+	public void run(long delay) throws Exception {
 	
 	[%for (t in w.getParallelizableTasks()) {%]
 	[%=t.name.ftlc()%]s.init(this);
@@ -165,21 +163,17 @@ public class [%=w.name%] extends Workflow {
 			[%}%]
 			}
 			
-			if (isMaster()){
+			if (isMaster()) {
 			[%for (t in w.tasks.select(t|t.isKindOf(Source))){%]
 				// run all sources in parallel threads
-				new Thread(new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							setTaskInProgess([%=t.name.ftlc()%]);
-							[%=t.name.ftlc()%].produce();
-							setTaskWaiting([%=t.name.ftlc()%]);
-						} catch (Exception ex) {
-							reportInternalException(ex);
-							terminate();
-						}
+				new Thread(() -> {
+					try {
+						setTaskInProgess([%=t.name.ftlc()%]);
+						[%=t.name.ftlc()%].produce();
+						setTaskWaiting([%=t.name.ftlc()%]);
+					} catch (Exception ex) {
+						reportInternalException(ex);
+						terminate();
 					}
 				}).start();	
 			[%}%]

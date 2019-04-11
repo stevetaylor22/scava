@@ -1,15 +1,15 @@
 package org.eclipse.scava.crossflow.runtime.utils;
 
 import java.util.LinkedList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import org.eclipse.scava.crossflow.runtime.Workflow;
 
 public class ParallelList<E> extends LinkedList<E> {
 
 	private Semaphore semaphore;
-	private ThreadPoolExecutor executor;
+	private ExecutorService executor;
 
 	public void init(Workflow w) {
 		semaphore = new Semaphore(w.getParallelization());
@@ -20,7 +20,7 @@ public class ParallelList<E> extends LinkedList<E> {
 		return semaphore;
 	}
 
-	public ThreadPoolExecutor getExecutor() {
+	public ExecutorService getExecutor() {
 		return executor;
 	}
 

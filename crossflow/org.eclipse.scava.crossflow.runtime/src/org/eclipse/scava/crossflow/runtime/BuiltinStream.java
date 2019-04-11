@@ -1,21 +1,8 @@
  package org.eclipse.scava.crossflow.runtime;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-
-import javax.jms.Connection;
-import javax.jms.DeliveryMode;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageListener;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
-import javax.jms.TextMessage;
+import java.util.*;
+import javax.jms.*;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQBytesMessage;
@@ -60,7 +47,6 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 			addConsumer(pendingConsumer);
 		}
 		pendingConsumers.clear();
-		
 	}
 	
 	public void send(T t) throws Exception {
@@ -80,33 +66,32 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 		
 		MessageConsumer messageConsumer = session.createConsumer(destination);
 		consumers.add(messageConsumer);
-		messageConsumer.setMessageListener(new MessageListener() {
-
-			@Override
-			public void onMessage(Message message) {
-				String messageText = "";
-				try {
-					if (message instanceof ActiveMQTextMessage) {
-						ActiveMQTextMessage amqMessage = (ActiveMQTextMessage) message;
-						messageText = amqMessage.getText();
-					} else {
-						ActiveMQBytesMessage bm = (ActiveMQBytesMessage) message;
-						byte data[] = new byte[(int) bm.getBodyLength()];
-						bm.readBytes(data);
-						messageText = new String(data);
-					}
-					consumer.consume((T) workflow.getSerializer().toObject(messageText));
-				} catch (JMSException e) {
-					workflow.reportInternalException(e);
+		messageConsumer.setMessageListener(message -> {
+			String messageText = "";
+			try {
+				if (message instanceof ActiveMQTextMessage) {
+					ActiveMQTextMessage amqMessage = (ActiveMQTextMessage) message;
+					messageText = amqMessage.getText();
+				} else {
+					ActiveMQBytesMessage bm = (ActiveMQBytesMessage) message;
+					byte data[] = new byte[(int) bm.getBodyLength()];
+					bm.readBytes(data);
+					messageText = new String(data);
 				}
+				consumer.consume((T) workflow.getSerializer().toObject(messageText));
+			}
+			catch (JMSException e) {
+				workflow.reportInternalException(e);
 			}
 		});
 	}
 
+	@Override
 	public void stop() {
 		try {
-			for (MessageConsumer c : consumers)
+			for (MessageConsumer c : consumers) {
 				c.close();
+			}
 			session.close();
 			connection.close();
 		}

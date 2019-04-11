@@ -2,36 +2,20 @@ package org.eclipse.scava.crossflow.runtime;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
-
+import java.util.*;
 import javax.management.MBeanServerConnection;
 import javax.management.MBeanServerInvocationHandler;
 import javax.management.ObjectName;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
-
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.jmx.DestinationViewMBean;
 import org.apache.activemq.command.ActiveMQDestination;
-import org.eclipse.scava.crossflow.runtime.utils.ControlSignal;
-import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger;
-import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger.SEVERITY;
+import org.eclipse.scava.crossflow.runtime.utils.*;
 import org.eclipse.scava.crossflow.runtime.utils.ControlSignal.ControlSignals;
-import org.eclipse.scava.crossflow.runtime.utils.LogMessage;
-import org.eclipse.scava.crossflow.runtime.utils.Result;
-import org.eclipse.scava.crossflow.runtime.utils.StreamMetadataSnapshot;
-import org.eclipse.scava.crossflow.runtime.utils.TaskStatus;
+import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger.SEVERITY;
 import org.eclipse.scava.crossflow.runtime.utils.TaskStatus.TaskStatuses;
-
 import com.beust.jcommander.Parameter;
 
 public abstract class Workflow {
@@ -68,8 +52,8 @@ public abstract class Workflow {
 			"-parallelization" }, description = "The parallelization of the workflow (for non-singleton tasks), defaults to 1")
 	protected int parallelization = 1;// Runtime.getRuntime().availableProcessors();
 
-	private List<String> activeJobs = new ArrayList<String>();
-	protected HashSet<Stream> activeStreams = new HashSet<Stream>();
+	private List<String> activeJobs = new ArrayList<>();
+	protected HashSet<Stream> activeStreams = new HashSet<>();
 
 	@Parameter(names = {
 			"-cacheEnabled" }, description = "Whether this workflow caches intermediary results or not.", arity = 1)
@@ -105,12 +89,12 @@ public abstract class Workflow {
 	protected List<InternalException> internalExceptions = null;
 
 	// for master to keep track of active and terminated workers
-	protected Collection<String> activeWorkerIds = new HashSet<String>();
-	protected Collection<String> terminatedWorkerIds = new HashSet<String>();
+	protected Collection<String> activeWorkerIds = new HashSet<>();
+	protected Collection<String> terminatedWorkerIds = new HashSet<>();
 	protected Serializer serializer = new Serializer();
 
 	// excluded tasks from workers
-	protected Collection<String> tasksToExclude = new LinkedList<String>();
+	protected Collection<String> tasksToExclude = new LinkedList<>();
 
 	/**
 	 * Sets whether tasks are able to obtain more jobs while they are in the middle
@@ -168,13 +152,13 @@ public abstract class Workflow {
 	}
 
 	public Workflow() {
-		taskStatusTopic = new BuiltinStream<TaskStatus>(this, "TaskStatusPublisher");
-		resultsTopic = new BuiltinStream<Result>(this, "ResultsBroadcaster");
-		streamMetadataTopic = new BuiltinStream<StreamMetadataSnapshot>(this, "StreamMetadataBroadcaster");
-		controlTopic = new BuiltinStream<ControlSignal>(this, "ControlTopic");
-		logTopic = new BuiltinStream<LogMessage>(this, "LogTopic");
-		failedJobsQueue = new BuiltinStream<FailedJob>(this, "FailedJobs", false);
-		internalExceptionsQueue = new BuiltinStream<InternalException>(this, "InternalExceptions", false);
+		taskStatusTopic = new BuiltinStream<>(this, "TaskStatusPublisher");
+		resultsTopic = new BuiltinStream<>(this, "ResultsBroadcaster");
+		streamMetadataTopic = new BuiltinStream<>(this, "StreamMetadataBroadcaster");
+		controlTopic = new BuiltinStream<>(this, "ControlTopic");
+		logTopic = new BuiltinStream<>(this, "LogTopic");
+		failedJobsQueue = new BuiltinStream<>(this, "FailedJobs", false);
+		internalExceptionsQueue = new BuiltinStream<>(this, "InternalExceptions", false);
 
 		instanceId = UUID.randomUUID().toString();
 	}
@@ -220,20 +204,18 @@ public abstract class Workflow {
 					case WORKER_REMOVED:
 						activeWorkerIds.remove(signal.getSenderId());
 						break;
-
 					default:
 						break;
 					}
 
-				} else {
-					if (signal.getSignal().equals(ControlSignals.TERMINATION))
-						try {
-							terminate();
-						} catch (Exception e) {
-							unrecoverableException(e);
-						}
 				}
-
+				else if (signal.getSignal().equals(ControlSignals.TERMINATION)) {
+					try {
+						terminate();
+					} catch (Exception e) {
+						unrecoverableException(e);
+					}
+				}
 			}
 		});
 
@@ -481,7 +463,7 @@ public abstract class Workflow {
 		run(0);
 	}
 
-	protected int delay = 0;
+	protected long delay = 0;
 
 	/**
 	 * delays the execution of sources for 'delay' milliseconds. Needs to set the
@@ -490,7 +472,7 @@ public abstract class Workflow {
 	 * @param delay
 	 * @throws Exception
 	 */
-	public abstract void run(int delay) throws Exception;
+	public abstract void run(long delay) throws Exception;
 
 	private synchronized boolean areStreamsEmpty() {
 
@@ -772,7 +754,7 @@ public abstract class Workflow {
 	 *         JobStreams
 	 */
 	public Set<ActiveMQDestination> getAllJobStreamsInternals() {
-		Set<ActiveMQDestination> ret = new HashSet<ActiveMQDestination>();
+		Set<ActiveMQDestination> ret = new HashSet<>();
 		activeStreams.stream().filter(s -> s instanceof JobStream)
 				.forEach(js -> ret.addAll(((JobStream<?>) js).getAllQueues()));
 		return ret;
