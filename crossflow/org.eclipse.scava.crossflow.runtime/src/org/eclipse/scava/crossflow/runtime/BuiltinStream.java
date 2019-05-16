@@ -3,11 +3,8 @@
 import java.io.Serializable;
 import java.util.*;
 import javax.jms.*;
-
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.command.ActiveMQBytesMessage;
 import org.apache.activemq.command.ActiveMQDestination;
-import org.apache.activemq.command.ActiveMQTextMessage;
 
 public class BuiltinStream<T extends Serializable> implements Stream {
 	
@@ -69,11 +66,11 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 		messageConsumer.setMessageListener(message -> {
 			String messageText = "";
 			try {
-				if (message instanceof ActiveMQTextMessage) {
-					ActiveMQTextMessage amqMessage = (ActiveMQTextMessage) message;
+				if (message instanceof TextMessage) {
+					TextMessage amqMessage = (TextMessage) message;
 					messageText = amqMessage.getText();
 				} else {
-					ActiveMQBytesMessage bm = (ActiveMQBytesMessage) message;
+					BytesMessage bm = (BytesMessage) message;
 					byte data[] = new byte[(int) bm.getBodyLength()];
 					bm.readBytes(data);
 					messageText = new String(data);
