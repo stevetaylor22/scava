@@ -6,7 +6,7 @@ import java.util.concurrent.Semaphore;
 
 import org.eclipse.scava.crossflow.runtime.Workflow;
 
-public class ParallelList<E> extends LinkedList<E> {
+public class ParallelTaskList<E> extends LinkedList<E> {
 
 	private Semaphore semaphore;
 	private ExecutorService executor;

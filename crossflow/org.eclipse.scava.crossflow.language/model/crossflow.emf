@@ -35,12 +35,13 @@ class Queue extends Stream {
 @gmf.node(label="name", label.icon="false")
 class Task {
   attr String name;
-
+ 
   ref Stream[*]#inputOf input;
 
   @gmf.link(target.decoration="filledclosedarrow")
   ref Stream[*]#outputOf output;
-  
+ 
+  attr Boolean needsConfiguration = "false"; 
   attr Boolean masterOnly = "false";
   attr Boolean parallel;
   attr Boolean cached;

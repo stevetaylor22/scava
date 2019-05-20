@@ -50,6 +50,12 @@ public class [%=w.name%] extends Workflow {
 	}
 	[%}%]
 	
+	if(needsConfiguration){	
+	// configuration topic
+	protected ConfigurationSource configSource = new ConfigurationSource();
+	configSource
+	}
+	
 	// streams
 	[%for (s in w.streams) { %]
 	protected [%=s.name%] [%=s.name.ftlc()%];
@@ -153,6 +159,23 @@ public class [%=w.name%] extends Workflow {
 				if (!tasksToExclude.contains("[%=t.name%]")) {
 					[%=t.setup()%]
 				}
+			[%}%]
+			}
+			
+			if(needsConfiguration)
+			if (isMaster()) {
+			[%for (t in w.tasks.select(t|t.isKindOf(Source))){%]
+				// run all sources in parallel threads
+				new Thread(() -> {
+					try {
+						setTaskInProgess([%=t.name.ftlc()%]);
+						[%=t.name.ftlc()%].produce();
+						setTaskWaiting([%=t.name.ftlc()%]);
+					} catch (Exception ex) {
+						reportInternalException(ex);
+						terminate();
+					}
+				}).start();	
 			[%}%]
 			}
 			

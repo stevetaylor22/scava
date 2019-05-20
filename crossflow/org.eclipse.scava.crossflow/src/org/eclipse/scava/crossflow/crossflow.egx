@@ -1,11 +1,23 @@
 rule Workflow2Class 
 	transform w : Workflow {
 	
-	parameters : Map{"w" = w,"package" = w.getPackageName()}
+	parameters : Map{"w" = w,"package" = w.getPackageName(), "needsConfiguration" = w.tasks.exists(t | t.needsConfiguration)}
 	
 	template : "workflow2class.egl"
 	
 	target : w.getPath() + w.name + ".java"
+}
+
+rule Workflow2ConfigurationSource 
+	transform w : Workflow {
+	
+	guard : w.tasks.exists(t | t.needsConfiguration)
+	
+	parameters : Map{"w" = w,"package" = w.getPackageName()}
+	
+	template : "workflow2configurationSource.egl"
+	
+	target : w.getImplPath() + "ConfigurationSource.java"
 }
 
 rule Workflow2AbstractGraph 

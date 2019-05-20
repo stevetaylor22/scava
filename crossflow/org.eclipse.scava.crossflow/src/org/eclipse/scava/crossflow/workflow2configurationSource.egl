@@ -1,0 +1,12 @@
+package [%=package%];
+
+import java.io.Serializable;
+
+public class ConfigurationSource extends ConfigurationSourceBase {
+	
+	@Override
+	public Serializable createConfiguration() {
+		// TODO create your configuration here.
+		return new java.util.HashMap<>(0);
+	}
+}
