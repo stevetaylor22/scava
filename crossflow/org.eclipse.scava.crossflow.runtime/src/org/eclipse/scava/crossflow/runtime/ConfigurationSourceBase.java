@@ -14,7 +14,7 @@ public abstract class ConfigurationSourceBase extends Task {
 	}
 	
 	@Override
-	public String getId(){
+	public String getId() {
 		return "ConfigurationSource:"+workflow.getName();
 	}
 	

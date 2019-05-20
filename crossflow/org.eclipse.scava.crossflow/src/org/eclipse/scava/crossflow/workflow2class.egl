@@ -14,6 +14,7 @@ import org.eclipse.scava.crossflow.runtime.utils.ControlSignal.ControlSignals;
 import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger.SEVERITY;
 import org.eclipse.scava.crossflow.runtime.Workflow;
 import org.eclipse.scava.crossflow.runtime.Mode;
+import org.eclipse.scava.crossflow.runtime.ConfigurationSourceBase;
 
 public class [%=w.name%] extends Workflow {
 
@@ -50,11 +51,10 @@ public class [%=w.name%] extends Workflow {
 	}
 	[%}%]
 	
-	if(needsConfiguration){	
+	[%if(needsConfiguration) { %]
 	// configuration topic
 	protected ConfigurationSource configSource = new ConfigurationSource();
-	configSource
-	}
+	[%}%]
 	
 	// streams
 	[%for (s in w.streams) { %]
@@ -162,22 +162,8 @@ public class [%=w.name%] extends Workflow {
 			[%}%]
 			}
 			
-			if(needsConfiguration)
-			if (isMaster()) {
-			[%for (t in w.tasks.select(t|t.isKindOf(Source))){%]
-				// run all sources in parallel threads
-				new Thread(() -> {
-					try {
-						setTaskInProgess([%=t.name.ftlc()%]);
-						[%=t.name.ftlc()%].produce();
-						setTaskWaiting([%=t.name.ftlc()%]);
-					} catch (Exception ex) {
-						reportInternalException(ex);
-						terminate();
-					}
-				}).start();	
+			[%if (needsConfiguration) {%]
 			[%}%]
-			}
 			
 			if (isMaster()) {
 			[%for (t in w.tasks.select(t|t.isKindOf(Source))){%]
