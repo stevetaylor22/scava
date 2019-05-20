@@ -8,7 +8,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import org.apache.activemq.broker.BrokerFactory;
 import org.apache.activemq.broker.BrokerService;
-import org.eclipse.scava.crossflow.runtime.utils.ParallelList;
+import org.eclipse.scava.crossflow.runtime.utils.ParallelTaskList;
 import org.eclipse.scava.crossflow.runtime.utils.ControlSignal;
 import org.eclipse.scava.crossflow.runtime.utils.ControlSignal.ControlSignals;
 import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger.SEVERITY;
@@ -68,7 +68,7 @@ public class [%=w.name%] extends Workflow {
 	[%}%]
 
 	[%for (t in w.getParallelizableTasks()) {%]
-	protected ParallelList<[%=t.name%]> [%=t.name.ftlc()%]s = new ParallelList<>();
+	protected ParallelTaskList<[%=t.name%]> [%=t.name.ftlc()%]s = new ParallelTaskList<>();
 	[%}%]
 
 	//
@@ -203,7 +203,7 @@ public class [%=w.name%] extends Workflow {
 	[%for (t in w.tasks) {%]
 	[%if (t.isJavaTask()) {%]
 	public [%=t.name%] get[%=t.name%]() {
-	[%if(w.getSingletonTasks().contains(t)){%]
+	[%if (w.getSingletonTasks().contains(t)) {%]
 		return [%=t.name.ftlc()%];
 	[%} else {%]
 		if([%=t.name.ftlc()%]s.size()>0)
@@ -213,12 +213,10 @@ public class [%=w.name%] extends Workflow {
 	[%}%]
 	}
 	[%if(w.getParallelizableTasks().contains(t)){%]
-	public ParallelList<[%=t.name%]> get[%=t.name%]s() {
+	public ParallelTaskList<[%=t.name%]> get[%=t.name%]s() {
 		return [%=t.name.ftlc()%]s;	
 	}	
-	[%}%]
-	[%}%]
-	[%}%]
+	[%}}}%]
 	
 }	
 [%
