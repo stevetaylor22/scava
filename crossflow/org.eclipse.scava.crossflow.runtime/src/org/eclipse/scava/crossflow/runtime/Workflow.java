@@ -809,6 +809,7 @@ public abstract class Workflow {
 			}
 
 			terminated = true;
+			notifyAll();
 			System.out.println("workflow " + getName() + " terminated.");
 			//
 		} catch (Exception ex) {
@@ -1018,9 +1019,21 @@ public abstract class Workflow {
 		logger.log(level, message);
 	}
 
-	public void awaitTermination() {
-		// TODO
-		if(true);
+	public final synchronized void awaitTermination() {
+		awaitTermination(-1);
+	}
+	
+	public synchronized void awaitTermination(long timeout) {
+		if (timeout < 0) timeout = 0;
+		// TODO: test
+		while (!terminated) {
+			try {
+				wait(timeout);
+			}
+			catch (InterruptedException ie) {
+				logger.log(SEVERITY.INFO, ie.getMessage());
+			}
+		}
 	}
 
 }
