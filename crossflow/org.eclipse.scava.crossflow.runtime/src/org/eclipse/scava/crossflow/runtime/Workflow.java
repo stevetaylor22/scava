@@ -3,7 +3,8 @@ package org.eclipse.scava.crossflow.runtime;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.management.*;
 import javax.management.remote.*;
 import org.apache.activemq.broker.BrokerService;
@@ -16,7 +17,7 @@ import org.eclipse.scava.crossflow.runtime.utils.*;
 import com.beust.jcommander.Parameter;
 
 public abstract class Workflow {
-
+	
 	@Parameter(names = { "-name" }, description = "The name of the workflow")
 	protected String name;
 	protected Cache cache;
@@ -54,7 +55,7 @@ public abstract class Workflow {
 	private List<String> activeJobs = new ArrayList<>();
 	protected HashSet<Stream> activeStreams = new HashSet<>();
 
-	protected HashSet<Task> tasks = new HashSet<Task>();
+	protected HashSet<Task> tasks = new HashSet<>();
 
 	@Parameter(names = {
 			"-cacheEnabled" }, description = "Whether this workflow caches intermediary results or not.", arity = 1)
@@ -98,12 +99,20 @@ public abstract class Workflow {
 	// excluded tasks from workers
 	protected Collection<String> tasksToExclude = new LinkedList<>();
 
+	protected Collection<ExecutorService> executorPools = new LinkedList<>();
+	
 	/**
 	 * Sets whether tasks are able to obtain more jobs while they are in the middle
 	 * of processing one already
 	 */
 	protected boolean enablePrefetch = false;
 
+	public ExecutorService newExecutor() {
+		ExecutorService executor = Executors.newFixedThreadPool(parallelization);
+		executorPools.add(executor);
+		return executor;
+	}
+	
 	public void setActiveMqConfig(String activeMqConfig) {
 		this.activeMqConfig = activeMqConfig;
 	}
@@ -156,21 +165,21 @@ public abstract class Workflow {
 	}
 
 	public Workflow() {
-		taskStatusTopic = new BuiltinStream<TaskStatus>(this, "TaskStatusPublisher");
-		resultsTopic = new BuiltinStream<Result>(this, "ResultsBroadcaster");
-		streamMetadataTopic = new BuiltinStream<StreamMetadataSnapshot>(this, "StreamMetadataBroadcaster");
-		taskMetadataTopic = new BuiltinStream<TaskStatus>(this, "TaskMetadataBroadcaster");
-		controlTopic = new BuiltinStream<ControlSignal>(this, "ControlTopic");
-		logTopic = new BuiltinStream<LogMessage>(this, "LogTopic");
-		failedJobsQueue = new BuiltinStream<FailedJob>(this, "FailedJobs", false);
-		internalExceptionsQueue = new BuiltinStream<InternalException>(this, "InternalExceptions", false);
+		taskStatusTopic = new BuiltinStream<>(this, "TaskStatusPublisher");
+		resultsTopic = new BuiltinStream<>(this, "ResultsBroadcaster");
+		streamMetadataTopic = new BuiltinStream<>(this, "StreamMetadataBroadcaster");
+		taskMetadataTopic = new BuiltinStream<>(this, "TaskMetadataBroadcaster");
+		controlTopic = new BuiltinStream<>(this, "ControlTopic");
+		logTopic = new BuiltinStream<>(this, "LogTopic");
+		failedJobsQueue = new BuiltinStream<>(this, "FailedJobs", false);
+		internalExceptionsQueue = new BuiltinStream<>(this, "InternalExceptions", false);
 
 		instanceId = UUID.randomUUID().toString();
 	}
 
-	private HashMap<String, String> displayedTaskStatuses = new HashMap<String, String>();
-	private HashMap<String, Long> waitingTaskStatuses = new HashMap<String, Long>();
-	private HashSet<String> activeTimers = new HashSet<String>();
+	private HashMap<String, String> displayedTaskStatuses = new HashMap<>();
+	private HashMap<String, Long> waitingTaskStatuses = new HashMap<>();
+	private HashSet<String> activeTimers = new HashSet<>();
 	private Timer taskStatusDelayedUpdateTimer = new Timer();
 
 	protected void connect() throws Exception {
@@ -774,8 +783,8 @@ public abstract class Workflow {
 			}
 
 			// destroy all thread pools used by tasks
-			for (ThreadPoolExecutor ex : CFThreadPoolExecutorServiceFactory.getPools()) {
-				List<Runnable> pending = ex.shutdownNow();
+			for (ExecutorService executor : executorPools) {
+				List<Runnable> pending = executor.shutdownNow();
 				if (pending.size() > 0)
 					System.err.println("WARNING: there were pending tasks in the threadpool upon termination!");
 			}

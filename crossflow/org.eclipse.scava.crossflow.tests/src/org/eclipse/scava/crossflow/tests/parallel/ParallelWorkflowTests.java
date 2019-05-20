@@ -60,7 +60,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 		workflow.setEnablePrefetch(false);
 		//
 
-		List<Integer> numbers = new LinkedList<Integer>();
+		List<Integer> numbers = new LinkedList<>();
 		for (int i = 1; i <= Math.max(4 * parallelization, 8); i++)
 			numbers.add(i);
 
@@ -121,7 +121,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 	public void parallelTestCache() throws Exception {
 
 		int num = Math.max(4 * parallelization, 8);
-		List<Integer> numbers = new LinkedList<Integer>();
+		List<Integer> numbers = new LinkedList<>();
 		for (int i = 1; i <= num; i++)
 			numbers.add(i);
 
@@ -166,7 +166,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 	public void testResultsTopicActual(int initialDelay) throws Exception {
 
 		int num = Math.max(4 * parallelization, 8);
-		Set<Integer> numbers = new HashSet<Integer>();
+		Set<Integer> numbers = new HashSet<>();
 		for (int i = 1; i <= num; i++)
 			numbers.add(i);
 
@@ -175,7 +175,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 		workflow.createBroker(createBroker);
 		workflow.getMinimalSource().setNumbers(new ArrayList<>(numbers));
 
-		Set<Integer> results = new HashSet<Integer>();
+		Set<Integer> results = new HashSet<>();
 
 		//
 		workflow.getMinimalSource().setSendToResults(true);
@@ -211,7 +211,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 	}
 
 	private abstract class StreamMetadataBuiltinStreamConsumer implements BuiltinStreamConsumer<StreamMetadataSnapshot> {
-		public List<Map.Entry<Long, Long>> failures = new ArrayList<Map.Entry<Long, Long>>();
+		public final List<Map.Entry<Long, Long>> failures = new ArrayList<>();
 		public boolean updated = false;
 		public long maxQueueSize = 0;
 		public int nonZeroMatches = 0;
@@ -239,7 +239,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 		workflow.setEnablePrefetch(enablePrefetch);
 		//
 		int num = Math.max(4 * parallelization, 8);
-		Set<Integer> numbers = new HashSet<Integer>();
+		Set<Integer> numbers = new HashSet<>();
 		for (int i = 1; i <= num; i++)
 			numbers.add(i);
 		//
@@ -287,7 +287,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 					maxQueueSize = streamSize > maxQueueSize ? streamSize : maxQueueSize;
 				} catch (Throwable e) {
 					// e.printStackTrace();
-					failures.add(new AbstractMap.SimpleEntry<Long, Long>(streamSize, statusBasedSize));
+					failures.add(new AbstractMap.SimpleEntry<>(streamSize, statusBasedSize));
 				}
 			}
 		};
@@ -343,9 +343,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 					System.out.println(subs + " == " + (1 + workflow.getParallelization()));
 					assertEquals(subs, 1 + workflow.getParallelization());
 				} catch (Throwable e) {
-					if (failures == null)
-						failures = new ArrayList<Map.Entry<Long, Long>>();
-					failures.add(new AbstractMap.SimpleEntry<Long, Long>(subs, ((long) 2)));
+					failures.add(new AbstractMap.SimpleEntry<>(subs, ((long) 2)));
 				}
 			}
 		};

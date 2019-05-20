@@ -13,7 +13,7 @@ public class ParallelList<E> extends LinkedList<E> {
 
 	public void init(Workflow w) {
 		semaphore = new Semaphore(w.getParallelization());
-		executor = CFThreadPoolExecutorServiceFactory.getExecutor(w.getParallelization());
+		executor = w.newExecutor();
 	}
 
 	public Semaphore getSemaphore() {
