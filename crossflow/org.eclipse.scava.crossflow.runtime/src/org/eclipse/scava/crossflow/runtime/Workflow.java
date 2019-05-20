@@ -2,37 +2,17 @@ package org.eclipse.scava.crossflow.runtime;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ThreadPoolExecutor;
-
-import javax.management.MBeanServerConnection;
-import javax.management.MBeanServerInvocationHandler;
-import javax.management.ObjectName;
-import javax.management.remote.JMXConnector;
-import javax.management.remote.JMXConnectorFactory;
-import javax.management.remote.JMXServiceURL;
+import javax.management.*;
+import javax.management.remote.*;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.jmx.DestinationViewMBean;
 import org.apache.activemq.command.ActiveMQDestination;
-import org.eclipse.scava.crossflow.runtime.utils.CFThreadPoolExecutorServiceFactory;
-import org.eclipse.scava.crossflow.runtime.utils.ControlSignal;
 import org.eclipse.scava.crossflow.runtime.utils.ControlSignal.ControlSignals;
-import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger;
 import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger.SEVERITY;
-import org.eclipse.scava.crossflow.runtime.utils.LogMessage;
-import org.eclipse.scava.crossflow.runtime.utils.Result;
-import org.eclipse.scava.crossflow.runtime.utils.StreamMetadataSnapshot;
-import org.eclipse.scava.crossflow.runtime.utils.TaskStatus;
 import org.eclipse.scava.crossflow.runtime.utils.TaskStatus.TaskStatuses;
+import org.eclipse.scava.crossflow.runtime.utils.*;
 import com.beust.jcommander.Parameter;
 
 public abstract class Workflow {
@@ -164,8 +144,6 @@ public abstract class Workflow {
 	private int terminationTimeout = 10000;
 	// time in milliseconds between stream metadata updates
 	private int streamMetadataPeriod = 200;
-
-	private int taskChangePeriod = 1000;
 
 	private int taskChangePeriod = 1000;
 	
