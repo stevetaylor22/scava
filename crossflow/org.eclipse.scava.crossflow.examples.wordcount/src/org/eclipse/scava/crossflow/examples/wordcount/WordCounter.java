@@ -12,16 +12,16 @@ public class WordCounter extends WordCounterBase {
 	public void consumeLines(Line line) {
 		//System.out.println(workflow.getName()+" consuming: "+line);
 		
-		String text = line.getText().replaceAll("[^A-Za-z]", " ");
+		String text = line.getText().replaceAll("[^A-Za-z]", " "); // replace all characters that are not letters with a single-space
 		HashMap<String, Integer> frequencies = new HashMap<String, Integer>();
-		for (String part : text.split(" ")) {
-			part = part.trim().toLowerCase();
-			if (part.length() == 0) continue;
-			if (!frequencies.containsKey(part)) {
-				frequencies.put(part, 1);
+		for (String word : text.split(" ")) {
+			word = word.trim().toLowerCase();
+			if (word.length() == 0) continue; // skip
+			if (!frequencies.containsKey(word)) {
+				frequencies.put(word, 1); // add new word
 			}
 			else {
-				frequencies.put(part, frequencies.get(part) + 1);
+				frequencies.put(word, frequencies.get(word) + 1); // increase frequency of existing word
 			}
 		}
 		

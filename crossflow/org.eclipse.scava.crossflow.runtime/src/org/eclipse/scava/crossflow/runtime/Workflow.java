@@ -13,6 +13,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
+
 import javax.management.MBeanServerConnection;
 import javax.management.MBeanServerInvocationHandler;
 import javax.management.ObjectName;
@@ -45,13 +46,15 @@ public abstract class Workflow {
 
 	@Parameter(names = { "-port" }, description = "Port of the master")
 	protected int port = 61616;
-	
-	@Parameter(names = { "-stomp"}, description = "Port to use for STOMP based messages")
+
+	@Parameter(names = { "-stomp" }, description = "Port to use for STOMP based messages")
 	protected int stompPort = 61613;
 
+	protected int wsPort = 61614;
+
 	protected BrokerService brokerService;
-	
-	@Parameter(names = {"-activeMqConfig"}, description = "Location of ActiveMQ configuration file")
+
+	@Parameter(names = { "-activeMqConfig" }, description = "Location of ActiveMQ configuration file")
 	protected String activeMqConfig;
 
 	@Parameter(names = { "-instance" }, description = "The instance of the master (to contribute to)")
@@ -70,6 +73,8 @@ public abstract class Workflow {
 
 	private List<String> activeJobs = new ArrayList<>();
 	protected HashSet<Stream> activeStreams = new HashSet<>();
+
+	protected HashSet<Task> tasks = new HashSet<Task>();
 
 	@Parameter(names = {
 			"-cacheEnabled" }, description = "Whether this workflow caches intermediary results or not.", arity = 1)
@@ -118,11 +123,11 @@ public abstract class Workflow {
 	 * of processing one already
 	 */
 	protected boolean enablePrefetch = false;
-	
+
 	public void setActiveMqConfig(String activeMqConfig) {
 		this.activeMqConfig = activeMqConfig;
 	}
-	
+
 	public String getActiveMqConfig() {
 		return activeMqConfig;
 	}
@@ -161,6 +166,8 @@ public abstract class Workflow {
 	private int streamMetadataPeriod = 200;
 
 	private int taskChangePeriod = 1000;
+
+	private int taskChangePeriod = 1000;
 	
 	public void setTerminationTimeout(int timeout) {
 		terminationTimeout = timeout;
@@ -171,23 +178,23 @@ public abstract class Workflow {
 	}
 
 	public Workflow() {
-		taskStatusTopic = new BuiltinStream<>(this, "TaskStatusPublisher");
-		resultsTopic = new BuiltinStream<>(this, "ResultsBroadcaster");
-		streamMetadataTopic = new BuiltinStream<>(this, "StreamMetadataBroadcaster");
-		taskMetadataTopic = new BuiltinStream<>(this, "TaskMetadataBroadcaster");
-		controlTopic = new BuiltinStream<>(this, "ControlTopic");
-		logTopic = new BuiltinStream<>(this, "LogTopic");
-		failedJobsQueue = new BuiltinStream<>(this, "FailedJobs", false);
-		internalExceptionsQueue = new BuiltinStream<>(this, "InternalExceptions", false);
+		taskStatusTopic = new BuiltinStream<TaskStatus>(this, "TaskStatusPublisher");
+		resultsTopic = new BuiltinStream<Result>(this, "ResultsBroadcaster");
+		streamMetadataTopic = new BuiltinStream<StreamMetadataSnapshot>(this, "StreamMetadataBroadcaster");
+		taskMetadataTopic = new BuiltinStream<TaskStatus>(this, "TaskMetadataBroadcaster");
+		controlTopic = new BuiltinStream<ControlSignal>(this, "ControlTopic");
+		logTopic = new BuiltinStream<LogMessage>(this, "LogTopic");
+		failedJobsQueue = new BuiltinStream<FailedJob>(this, "FailedJobs", false);
+		internalExceptionsQueue = new BuiltinStream<InternalException>(this, "InternalExceptions", false);
 
 		instanceId = UUID.randomUUID().toString();
 	}
 
-	private HashMap<String, String> displayedTaskStatuses = new HashMap<>();
-	private HashMap<String, Long> waitingTaskStatuses = new HashMap<>();
-	private HashSet<String> activeTimers = new HashSet<>();
+	private HashMap<String, String> displayedTaskStatuses = new HashMap<String, String>();
+	private HashMap<String, Long> waitingTaskStatuses = new HashMap<String, Long>();
+	private HashSet<String> activeTimers = new HashSet<String>();
 	private Timer taskStatusDelayedUpdateTimer = new Timer();
-	
+
 	protected void connect() throws Exception {
 
 		if (tempDirectory == null) {
@@ -255,6 +262,7 @@ public abstract class Workflow {
 
 				@Override
 				public void consume(TaskStatus status) {
+					// NumberPairSource:Master : INPROGRESS
 					// System.err.println("consumeTaskStatusTopic on " + getName() + " : " +
 					// status.getCaller() + " : " + status.getStatus());
 					switch (status.getStatus()) {
@@ -271,6 +279,92 @@ public abstract class Workflow {
 					default:
 						break;
 					}
+
+					// sending to task metadata logic
+					try {
+						int colonIndex = status.getCaller().indexOf(":");
+						String taskName = status.getCaller().substring(0,
+								colonIndex > 0 ? colonIndex : status.getCaller().length());
+
+						long time = System.currentTimeMillis();
+
+						// if the task is new (not displayed yet), send its initial status
+						if (!displayedTaskStatuses.containsKey(taskName)) {
+							taskMetadataTopic.send(status);
+							displayedTaskStatuses.put(taskName, status.getStatus() + ":" + time);
+							System.out.println("updating task " + taskName + " from NEW to " + status.getStatus());
+							return;
+						}
+
+						// if a task was in the waiting list (delayed display change) but has a status
+						// not waiting arrive in the meantime, remove it from that list
+						if (!status.getStatus().equals(TaskStatuses.WAITING))
+							waitingTaskStatuses.remove(taskName);
+
+						String[] displayedSplit = displayedTaskStatuses.get(taskName).split(":");
+
+						// if the task is not currently displayed as inprogress or the new status is not
+						// waiting
+						if (!displayedSplit[0].equals(TaskStatuses.INPROGRESS.toString())
+								|| !status.getStatus().equals(TaskStatuses.WAITING)) {
+							// immediate visual update unless status is already finished
+							if (!displayedSplit[0].equals(status.getStatus().toString())
+									&& !displayedSplit[0].equals(TaskStatuses.FINISHED.toString())) {
+								taskMetadataTopic.send(status);
+								displayedTaskStatuses.put(taskName, status.getStatus() + ":" + time);
+								System.out.println("updating task " + taskName + " from " + displayedSplit[0] + " to "
+										+ status.getStatus());
+							}
+							// if the task is displayed as in progress and the new status is waiting --
+							// delay the visual update
+						} else {
+							// add the task to the delayed waiting list if it is not there (keep earliest
+							// time it was added to it)
+							if (!waitingTaskStatuses.containsKey(taskName))
+								waitingTaskStatuses.put(taskName, time);
+
+							// create a delayed trigger (only once per task per cycle) for updating the ui
+							// to waiting if upon firing the
+							// task has not been updated since
+
+							if (!activeTimers.contains(taskName)) {
+								activeTimers.add(taskName);
+								taskStatusDelayedUpdateTimer.schedule(new TimerTask() {
+
+									@Override
+									public void run() {
+										activeTimers.remove(taskName);
+										//
+										long delayedtime = System.currentTimeMillis();
+										String[] dSplit = displayedTaskStatuses.get(taskName).split(":");
+										if (waitingTaskStatuses.containsKey(taskName) && (delayedtime
+												- waitingTaskStatuses.get(taskName) > taskChangePeriod)) {
+											waitingTaskStatuses.remove(taskName);
+											displayedTaskStatuses.put(taskName, status.getStatus() + ":" + delayedtime);
+											//
+											System.out.println("updating task " + taskName + " from " + dSplit[0]
+													+ " to " + status.getStatus() + " (DELAYED)");
+											try {
+												taskMetadataTopic.send(status);
+											} catch (Exception e) {
+												System.err.println(
+														"Error in delayed task status metadata update timer task:");
+												e.printStackTrace();
+											}
+										} else {
+											//System.out.println("Delayed update did not update task:" + taskName);
+											//System.out.println(waitingTaskStatuses.containsKey(taskName)
+												//	? (delayedtime - waitingTaskStatuses.get(taskName))
+												//	: "n/a");
+										}
+									}
+								}, (long) (taskChangePeriod * 1.1));
+							}
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+
 				}
 
 			});
@@ -462,17 +556,23 @@ public abstract class Workflow {
 		// adds a more lenient delay for heavily loaded servers (60 instead of 10 sec)
 		return "tcp://" + master + ":" + port + "?wireFormat.maxInactivityDurationInitalDelay=60000";
 	}
-	
+
 	// TODO: Fix this to allow dynamic port
 	public String getStompBroker() {
 		return "stomp://" + master + ":" + stompPort;
 	}
-	
+
+	// TODO: Fix this to allow dynamic port
+	public String getWSBroker() {
+		return "ws://" + master + ":" + wsPort;
+	}
+
 	public void stopBroker() throws Exception {
 		brokerService.deleteAllMessages();
+		// brokerService.stopAllConnectors(new ServiceStopper());
 		brokerService.stopGracefully("", "", 1000, 1000);
 		System.out.println("terminated broker (" + getName() + ")");
-		logger.log(SEVERITY.INFO, "terminated broker (" + getName() + ")");
+		// logger.log(SEVERITY.INFO, "terminated broker (" + getName() + ")");
 	}
 
 	public void run() throws Exception {
@@ -560,6 +660,19 @@ public abstract class Workflow {
 		if (terminationTimer != null)
 			terminationTimer.cancel();
 
+		// close all tasks
+
+		for (Task t : tasks)
+			t.close();
+
+		// send task termination to metadata
+		try {
+			for (Task t : tasks)
+				taskMetadataTopic.send(new TaskStatus(TaskStatuses.FINISHED, t.getId(), ""));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		try {
 			// master graceful termination logic
 			if (isMaster()) {
@@ -591,24 +704,26 @@ public abstract class Workflow {
 			if (isMaster()) {
 				//
 				streamMetadataTimer.cancel();
-				try {
-					streamMetadataTopic.stop();
-				} catch (Exception e) {
-					// Ignore any exception
-				}
-				activeStreams.remove(streamMetadataTopic);
-				//
+
+			}
+
+			try {
+				streamMetadataTopic.stop();
+			} catch (Exception e) {
+				// Ignore any exception
+				e.printStackTrace();
+			}
+
+			if (isMaster()) {
+
 				try {
 					controlTopic.stop();
 				} catch (Exception e) {
 					// Ignore any exception
+					e.printStackTrace();
 				}
 				activeStreams.remove(controlTopic);
-				//
-				System.out.println("createBroker: " + createBroker);
-				if (createBroker) {
-					stopBroker();
-				}
+
 			} else {
 				controlTopic.send(new ControlSignal(ControlSignals.ACKNOWLEDGEMENT, getName()));
 
@@ -616,22 +731,25 @@ public abstract class Workflow {
 					controlTopic.stop();
 				} catch (Exception e) {
 					// Ignore any exception
+					e.printStackTrace();
 				}
 				activeStreams.remove(controlTopic);
 			}
 
-			//
+			// stop all permanent streams
 
 			try {
 				resultsTopic.stop();
 			} catch (Exception e) {
 				// Ignore any exception
+				e.printStackTrace();
 			}
 
 			try {
 				logTopic.stop();
 			} catch (Exception e) {
 				// Ignore any exception
+				e.printStackTrace();
 			}
 
 			activeStreams.remove(resultsTopic);
@@ -644,6 +762,51 @@ public abstract class Workflow {
 					stream.stop();
 				} catch (Exception e) {
 					// Ignore any exception
+					e.printStackTrace();
+				}
+			}
+
+			try {
+				taskStatusTopic.stop();
+			} catch (Exception e) {
+				// Ignore any exception
+				e.printStackTrace();
+			}
+
+			if (taskStatusDelayedUpdateTimer != null)
+				taskStatusDelayedUpdateTimer.cancel();
+
+			try {
+				failedJobsQueue.stop();
+			} catch (Exception e) {
+				// Ignore any exception
+				e.printStackTrace();
+			}
+			try {
+				internalExceptionsQueue.stop();
+			} catch (Exception e) {
+				// Ignore any exception
+				e.printStackTrace();
+			}
+			try {
+				taskMetadataTopic.stop();
+			} catch (Exception e) {
+				// Ignore any exception
+				e.printStackTrace();
+			}
+
+			// destroy all thread pools used by tasks
+			for (ThreadPoolExecutor ex : CFThreadPoolExecutorServiceFactory.getPools()) {
+				List<Runnable> pending = ex.shutdownNow();
+				if (pending.size() > 0)
+					System.err.println("WARNING: there were pending tasks in the threadpool upon termination!");
+			}
+
+			if (isMaster()) {
+				//
+				System.out.println("createBroker: " + createBroker);
+				if (createBroker) {
+					stopBroker();
 				}
 			}
 
@@ -653,7 +816,7 @@ public abstract class Workflow {
 		} catch (Exception ex) {
 			// There is nothing to do at this stage -- print error for debugging purposes
 			// only
-			// ex.printStackTrace();
+			ex.printStackTrace();
 		}
 	}
 
@@ -724,7 +887,7 @@ public abstract class Workflow {
 	public void setTaskFinished(Task caller) throws Exception {
 		taskStatusTopic.send(new TaskStatus(TaskStatuses.FINISHED, caller.getId(), ""));
 	}
-		
+
 	public File getInputDirectory() {
 		return inputDirectory;
 	}

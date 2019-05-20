@@ -1,7 +1,9 @@
 rule Workflow2Class 
 	transform w : Workflow {
 	
-	parameters : Map{"w" = w,"package" = w.getPackageName()}
+	guard: w.appliesTo()
+	
+	parameters : Map{"w" = w,"package" = w.getPackageName("Python")}
 	
 	template : "workflow2class.egl"
 	
@@ -11,7 +13,7 @@ rule Workflow2Class
 rule Type2Class 
 	transform t : Type {
 	
-	guard : t.impl.isUndefined() //and s.csvFile.isUndefined()
+	guard : t.appliesTo() and t.impl.isUndefined() //and s.csvFile.isUndefined()
 	
 	template : "type2class.egl"
 	
@@ -20,6 +22,8 @@ rule Type2Class
 
 rule CsvSource2Source
 	transform t : CsvSource {
+
+	guard: t.appliesTo()
 
 	parameters : Map{"w" = t.eContainer()}
 
@@ -32,6 +36,8 @@ rule CsvSource2Source
 
 rule CsvSink2Sink
 	transform t : CsvSink {
+
+	guard: t.appliesTo()
 
 	parameters : Map{"w" = t.eContainer()}
 
@@ -46,7 +52,7 @@ rule CsvSink2Sink
 rule Task2BaseClass 
 	transform t : Task {
 
-	guard : t.language.isDefined() and t.language.name=="Python"	
+	guard : t.appliesTo()
 	
 	parameters : Map{"w" = t.eContainer()}
 	
@@ -59,9 +65,9 @@ rule Task2BaseClass
 rule Task2ImplClass 
 	transform t : Task {
 		
-	guard : t.language.isDefined() and t.language.name=="Python"		
+	guard : t.appliesTo()
 		
-	parameters : Map{"w" = t.eContainer(),"package" = t.eContainer().getPackageName()}
+	parameters : Map{"w" = t.eContainer(),"package" = t.eContainer().getPackageName("Python")}
 	
 	template : "task2implclass.egl"
 	
@@ -74,6 +80,8 @@ rule Task2ImplClass
 rule Steam2Class 
 	transform s : Stream {
 	
+	guard: s.appliesTo()
+	
 	parameters : Map{"w" = s.eContainer()}
 	
 	template : "stream2class.egl"
@@ -85,6 +93,8 @@ rule Steam2Class
 rule Steam2Consumer 
 	transform s : Stream {
 	
+	guard: s.appliesTo()
+	
 	parameters : Map{"t" = Task}
 	
 	template : "stream2consumer.egl"
@@ -94,57 +104,56 @@ rule Steam2Consumer
 
 @cached
 operation Any getPath() {
-	var workflow = self;
-	if (not self.isTypeOf(Workflow)) workflow = self.eContainer();
+	var workflow = self.getWorkflow();
+	var lang = workflow.languages.select(l|l.isPython());
 	
-	var lang = workflow.languages.select(l|l.name=="Python");
-	var langExists = not lang.isEmpty;
+	if (lang.isEmpty()) {
+		return "python/src-gen" + "/" + workflow.package.toPath();
+	} 
 
-	var path = "";
-	
-	if(langExists) path = lang.first.genOutputFolder + "/";
-	else path = "src-gen-py/";
-	
-	path = path + workflow.getPackageName().toPath();
-
-	return path;
+	return lang.first.genOutputFolder + "/" + lang.first.package.toPath();
 }
 
 @cached
 operation Any getImplPath() {
-	var workflow = self;
-	if (not self.isTypeOf(Workflow)) workflow = self.eContainer();
+	var workflow = self.getWorkflow();
+	var lang = workflow.languages.select(l|l.isPython());
 	
-	var lang = workflow.languages.select(l|l.name=="Python");
-	var langExists = not lang.isEmpty;
+	if (lang.isEmpty()) {
+		return "python/src" + "/" + workflow.package.toPath();
+	} 
 
-	var path = "";
-	
-	if(langExists) path = lang.first.outputFolder + "/";
-	else path = "src-py/";
-	
-	path = path + workflow.getPackageName().toPath();
-
-	return path;
+	return lang.first.outputFolder + "/" + lang.first.package.toPath();
 }
 
 @cached
 operation Any getWorkflow() : Workflow {
 	if (self.isTypeOf(Workflow)) return self;
-	return self.eContainer();
+	return self.eContainer().getWorkflow();
 }
 
 operation String toPath() : String {
 	return self.replaceAll("\\.", "/") + "/";
 }
 
-operation Workflow getPackageName() {
-	var lang = self.languages.select(l|l.name=="Python");
-	var langExists = not lang.isEmpty;
+operation Any appliesTo() : Boolean {
+	if (self.isKindOf(Task)) {
+		return self.language.isDefined() and self.language.isPython();
+	}
+	return not self.getWorkflow().languages.select(l|l.isPython()).isEmpty();
+}
+
+operation Workflow getPackageName(lang : String) {
+	var langs = self.languages.select(l | l.name == lang);
+	var langExists = not langs.isEmpty;
 
 	var package = self.name.ftlc;
 	
-	if(langExists) package = lang.first.package;
+	if(langExists) package = langs.first.package;
 	
 	return package;
+}
+
+operation Language isPython() : Boolean {
+	return self.name.toLowerCase=="python";
 }
