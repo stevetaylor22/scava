@@ -2,7 +2,17 @@ package org.eclipse.scava.crossflow.runtime;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
+import java.util.concurrent.ThreadPoolExecutor;
 import javax.management.MBeanServerConnection;
 import javax.management.MBeanServerInvocationHandler;
 import javax.management.ObjectName;
@@ -12,9 +22,15 @@ import javax.management.remote.JMXServiceURL;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.jmx.DestinationViewMBean;
 import org.apache.activemq.command.ActiveMQDestination;
-import org.eclipse.scava.crossflow.runtime.utils.*;
+import org.eclipse.scava.crossflow.runtime.utils.CFThreadPoolExecutorServiceFactory;
+import org.eclipse.scava.crossflow.runtime.utils.ControlSignal;
 import org.eclipse.scava.crossflow.runtime.utils.ControlSignal.ControlSignals;
+import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger;
 import org.eclipse.scava.crossflow.runtime.utils.CrossflowLogger.SEVERITY;
+import org.eclipse.scava.crossflow.runtime.utils.LogMessage;
+import org.eclipse.scava.crossflow.runtime.utils.Result;
+import org.eclipse.scava.crossflow.runtime.utils.StreamMetadataSnapshot;
+import org.eclipse.scava.crossflow.runtime.utils.TaskStatus;
 import org.eclipse.scava.crossflow.runtime.utils.TaskStatus.TaskStatuses;
 import com.beust.jcommander.Parameter;
 
@@ -76,6 +92,7 @@ public abstract class Workflow {
 	protected BuiltinStream<TaskStatus> taskStatusTopic = null;
 	protected BuiltinStream<Result> resultsTopic = null;
 	protected BuiltinStream<StreamMetadataSnapshot> streamMetadataTopic = null;
+	protected BuiltinStream<TaskStatus> taskMetadataTopic = null;
 	protected BuiltinStream<ControlSignal> controlTopic = null;
 
 	protected BuiltinStream<LogMessage> logTopic = null;
@@ -141,8 +158,10 @@ public abstract class Workflow {
 	// from workers
 	private int terminationTimeout = 10000;
 	// time in milliseconds between stream metadata updates
-	private int streamMetadataPeriod = 3000;
+	private int streamMetadataPeriod = 200;
 
+	private int taskChangePeriod = 1000;
+	
 	public void setTerminationTimeout(int timeout) {
 		terminationTimeout = timeout;
 	}
@@ -155,6 +174,7 @@ public abstract class Workflow {
 		taskStatusTopic = new BuiltinStream<>(this, "TaskStatusPublisher");
 		resultsTopic = new BuiltinStream<>(this, "ResultsBroadcaster");
 		streamMetadataTopic = new BuiltinStream<>(this, "StreamMetadataBroadcaster");
+		taskMetadataTopic = new BuiltinStream<>(this, "TaskMetadataBroadcaster");
 		controlTopic = new BuiltinStream<>(this, "ControlTopic");
 		logTopic = new BuiltinStream<>(this, "LogTopic");
 		failedJobsQueue = new BuiltinStream<>(this, "FailedJobs", false);
@@ -163,6 +183,11 @@ public abstract class Workflow {
 		instanceId = UUID.randomUUID().toString();
 	}
 
+	private HashMap<String, String> displayedTaskStatuses = new HashMap<>();
+	private HashMap<String, Long> waitingTaskStatuses = new HashMap<>();
+	private HashSet<String> activeTimers = new HashSet<>();
+	private Timer taskStatusDelayedUpdateTimer = new Timer();
+	
 	protected void connect() throws Exception {
 
 		if (tempDirectory == null) {
@@ -171,6 +196,7 @@ public abstract class Workflow {
 		taskStatusTopic.init();
 		resultsTopic.init();
 		streamMetadataTopic.init();
+		taskMetadataTopic.init();
 		controlTopic.init();
 		logTopic.init();
 		failedJobsQueue.init();

@@ -44,6 +44,7 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 			addConsumer(pendingConsumer);
 		}
 		pendingConsumers.clear();
+		
 	}
 	
 	public void send(T t) throws Exception {
@@ -94,6 +95,8 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 		}
 		catch (Exception ex) {
 			// Nothing to do at this stage
+			System.err.println(getName() + ":");
+			ex.printStackTrace();
 		}
 	}
 
