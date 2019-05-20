@@ -1,7 +1,7 @@
 rule Workflow2Class 
 	transform w : Workflow {
 	
-	parameters : Map{"w" = w,"package" = w.getPackageName(), "needsConfiguration" = w.tasks.exists(t | t.needsConfiguration)}
+	parameters : Map{"w" = w,"package" = w.getPackageName(), "needsConfiguration" = w.needsConfiguration()}
 	
 	template : "workflow2class.egl"
 	
@@ -11,7 +11,7 @@ rule Workflow2Class
 rule Workflow2ConfigurationSource 
 	transform w : Workflow {
 	
-	guard : w.tasks.exists(t | t.needsConfiguration)
+	guard : w.needsConfiguration()
 	
 	parameters : Map{"w" = w,"package" = w.getPackageName()}
 	
@@ -195,6 +195,10 @@ operation Workflow getPackageName() {
 	if(langExists) package = lang.first.package;
 	
 	return package;
+}
+
+operation Workflow needsConfiguration() : Boolean {
+	return self.tasks.exists(t | t.needsConfiguration);
 }
 
 operation Language isJava() : Boolean {

@@ -1018,17 +1018,15 @@ public abstract class Workflow {
 	public void log(SEVERITY level, String message) {
 		logger.log(level, message);
 	}
-
-	public final synchronized void awaitTermination() {
-		awaitTermination(-1);
-	}
 	
-	public synchronized void awaitTermination(long timeout) {
-		if (timeout < 0) timeout = 0;
+	/**
+	 * Waits until {@link #hasTerminated()} return true.
+	 */
+	public synchronized void awaitTermination() {
 		// TODO: test
 		while (!terminated) {
 			try {
-				wait(timeout);
+				wait();
 			}
 			catch (InterruptedException ie) {
 				logger.log(SEVERITY.INFO, ie.getMessage());
