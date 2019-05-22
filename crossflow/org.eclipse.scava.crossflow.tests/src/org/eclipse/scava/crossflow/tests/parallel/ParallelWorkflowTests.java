@@ -363,7 +363,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 
 		waitFor(workflow);
 
-		assertEquals("ParallelWorkflowTests failures: " + con.failures, 0, con.failures.size());
+		assertEquals(0, con.failures.size());
 	}
 
 }

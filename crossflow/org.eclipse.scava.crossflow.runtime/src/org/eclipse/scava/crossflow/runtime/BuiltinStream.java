@@ -89,6 +89,7 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 	@Override
 	public void stop() {
 		try {
+
 			for (MessageConsumer c : consumers) {
 				c.close();
 			}
@@ -100,7 +101,7 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 			ex.printStackTrace();
 		}
 	}
-	
+
 	@Override
 	public boolean isBroadcast() {
 		return broadcast;

@@ -210,7 +210,8 @@ public class MinimalWorkflowTests extends WorkflowTests {
 		}
 	}
 
-	private abstract class StreamMetadataBuiltinStreamConsumer implements BuiltinStreamConsumer<StreamMetadataSnapshot> {
+	private abstract class StreamMetadataBuiltinStreamConsumer
+			implements BuiltinStreamConsumer<StreamMetadataSnapshot> {
 		public List<Map.Entry<Long, Long>> failures = new ArrayList<Map.Entry<Long, Long>>();
 		public boolean updated = false;
 		public long maxQueueSize = 0;
@@ -284,7 +285,8 @@ public class MinimalWorkflowTests extends WorkflowTests {
 					maxQueueSize = streamSize > maxQueueSize ? streamSize : maxQueueSize;
 				} catch (Throwable e) {
 					// e.printStackTrace();
-					failures.add(new AbstractMap.SimpleEntry<Long, Long>(streamSize, statusBasedSize));
+					if(!workflow.isTerminating()) // during termination the number of subscribers is inconsistent so ignore it
+						failures.add(new AbstractMap.SimpleEntry<Long, Long>(streamSize, statusBasedSize));
 				}
 			}
 		};
@@ -340,9 +342,8 @@ public class MinimalWorkflowTests extends WorkflowTests {
 					workflow.log(SEVERITY.INFO, subs + " == " + "2");
 					assertEquals(t.getStream(INPUT_STREAM_ID).getNumberOfSubscribers(), 2);
 				} catch (Throwable e) {
-					if (failures == null)
-						failures = new ArrayList<Map.Entry<Long, Long>>();
-					failures.add(new AbstractMap.SimpleEntry<Long, Long>(subs, ((long) 2)));
+					if(!workflow.isTerminating()) // during termination the number of subscribers is inconsistent so ignore it
+						failures.add(new AbstractMap.SimpleEntry<Long, Long>(subs, ((long) 2)));
 				}
 			}
 		};
@@ -361,7 +362,7 @@ public class MinimalWorkflowTests extends WorkflowTests {
 
 		waitFor(workflow);
 
-		assertEquals(0, con.failures.size());
+		assertEquals("MinimalWorkflowTests failures: " + con.failures, 0, con.failures.size());
 	}
 
 }
