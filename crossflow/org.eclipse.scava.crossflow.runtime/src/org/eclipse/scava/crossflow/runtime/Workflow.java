@@ -17,7 +17,7 @@ import org.eclipse.scava.crossflow.runtime.utils.*;
 import com.beust.jcommander.Parameter;
 
 public abstract class Workflow {
-	
+
 	@Parameter(names = { "-name" }, description = "The name of the workflow")
 	protected String name;
 	protected Cache cache;
@@ -31,7 +31,12 @@ public abstract class Workflow {
 	@Parameter(names = { "-stomp" }, description = "Port to use for STOMP based messages")
 	protected int stompPort = 61613;
 
+	@Parameter(names = { "-ws" }, description = "Port to use for WS based messages")
 	protected int wsPort = 61614;
+
+	protected boolean enableStomp = true;
+
+	protected boolean enableWS = false;
 
 	protected BrokerService brokerService;
 
@@ -101,19 +106,27 @@ public abstract class Workflow {
 	protected Collection<String> tasksToExclude = new LinkedList<>();
 
 	protected Collection<ExecutorService> executorPools = new LinkedList<>();
-	
-	/**
-	 * Sets whether tasks are able to obtain more jobs while they are in the middle
-	 * of processing one already
-	 */
-	protected boolean enablePrefetch = false;
 
 	public ExecutorService newExecutor() {
 		ExecutorService executor = Executors.newFixedThreadPool(parallelization);
 		executorPools.add(executor);
 		return executor;
 	}
-	
+
+	/**
+	 * Sets whether tasks are able to obtain more jobs while they are in the middle
+	 * of processing one already
+	 */
+	protected boolean enablePrefetch = false;
+
+	public void setEnableStomp(boolean enable) {
+		enableStomp = enable;
+	}
+
+	public void setEnableWS(boolean enable) {
+		enableWS = enable;
+	}
+
 	public void setActiveMqConfig(String activeMqConfig) {
 		this.activeMqConfig = activeMqConfig;
 	}
@@ -138,6 +151,7 @@ public abstract class Workflow {
 	protected Timer streamMetadataTimer;
 	boolean aboutToTerminate = false;
 	protected boolean terminated = false;
+	protected boolean terminating = false;
 	private boolean terminationEnabled = true;
 
 	/**
@@ -156,7 +170,7 @@ public abstract class Workflow {
 	private int streamMetadataPeriod = 200;
 
 	private int taskChangePeriod = 1000;
-	
+
 	public void setTerminationTimeout(int timeout) {
 		terminationTimeout = timeout;
 	}
@@ -282,7 +296,7 @@ public abstract class Workflow {
 						if (!displayedTaskStatuses.containsKey(taskName)) {
 							taskMetadataTopic.send(status);
 							displayedTaskStatuses.put(taskName, status.getStatus() + ":" + time);
-							System.out.println("updating task " + taskName + " from NEW to " + status.getStatus());
+							//System.out.println("updating task " + taskName + " from NEW to " + status.getStatus());
 							return;
 						}
 
@@ -302,8 +316,8 @@ public abstract class Workflow {
 									&& !displayedSplit[0].equals(TaskStatuses.FINISHED.toString())) {
 								taskMetadataTopic.send(status);
 								displayedTaskStatuses.put(taskName, status.getStatus() + ":" + time);
-								System.out.println("updating task " + taskName + " from " + displayedSplit[0] + " to "
-										+ status.getStatus());
+								//System.out.println("updating task " + taskName + " from " + displayedSplit[0] + " to "
+										//+ status.getStatus());
 							}
 							// if the task is displayed as in progress and the new status is waiting --
 							// delay the visual update
@@ -332,8 +346,8 @@ public abstract class Workflow {
 											waitingTaskStatuses.remove(taskName);
 											displayedTaskStatuses.put(taskName, status.getStatus() + ":" + delayedtime);
 											//
-											System.out.println("updating task " + taskName + " from " + dSplit[0]
-													+ " to " + status.getStatus() + " (DELAYED)");
+											//System.out.println("updating task " + taskName + " from " + dSplit[0]
+													//+ " to " + status.getStatus() + " (DELAYED)");
 											try {
 												taskMetadataTopic.send(status);
 											} catch (Exception e) {
@@ -342,10 +356,10 @@ public abstract class Workflow {
 												e.printStackTrace();
 											}
 										} else {
-											//System.out.println("Delayed update did not update task:" + taskName);
-											//System.out.println(waitingTaskStatuses.containsKey(taskName)
-												//	? (delayedtime - waitingTaskStatuses.get(taskName))
-												//	: "n/a");
+											// System.out.println("Delayed update did not update task:" + taskName);
+											// System.out.println(waitingTaskStatuses.containsKey(taskName)
+											// ? (delayedtime - waitingTaskStatuses.get(taskName))
+											// : "n/a");
 										}
 									}
 								}, (long) (taskChangePeriod * 1.1));
@@ -647,6 +661,8 @@ public abstract class Workflow {
 		if (terminated)
 			return;
 
+		terminating = true;
+		
 		if (terminationTimer != null)
 			terminationTimer.cancel();
 
@@ -819,6 +835,10 @@ public abstract class Workflow {
 		}
 	}
 
+	public boolean isTerminating() {
+		return terminating;
+	}
+	
 	public boolean hasTerminated() {
 		return terminated;
 	}

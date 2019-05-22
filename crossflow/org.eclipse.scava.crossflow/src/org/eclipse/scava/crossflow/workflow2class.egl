@@ -133,8 +133,10 @@ public class [%=w.name%] extends Workflow {
 				//activeMqConfig
 				brokerService.setUseJmx(true);
 				brokerService.addConnector(getBroker());
-				brokerService.addConnector(getStompBroker());
-				brokerService.addConnector(getWSBroker());
+				if(enableStomp)
+					brokerService.addConnector(getStompBroker());
+				if(enableWS)	
+					brokerService.addConnector(getWSBroker());
 				brokerService.start();
 			}
 		}
@@ -163,6 +165,7 @@ public class [%=w.name%] extends Workflow {
 			}
 			
 			[%if (needsConfiguration) {%]
+				//for each configuration run its source!
 			[%}%]
 			
 			if (isMaster()) {
@@ -221,7 +224,7 @@ public class [%=w.name%] extends Workflow {
 }	
 [%
 operation Task isJavaTask(){
-	return not self.language.isDefined() or self.language.name=="Java";
+	return self.languages.isEmpty() or self.languages.exists(l | l.name.toLowerCase=="java");
 }
 
 operation Workflow getParallelizableTasks() {

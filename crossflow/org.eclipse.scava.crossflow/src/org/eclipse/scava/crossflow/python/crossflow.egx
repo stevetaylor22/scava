@@ -138,9 +138,9 @@ operation String toPath() : String {
 
 operation Any appliesTo() : Boolean {
 	if (self.isKindOf(Task)) {
-		return self.language.isDefined() and self.language.isPython();
+		return self.languages.exists(l | l.isPython());
 	}
-	return not self.getWorkflow().languages.select(l|l.isPython()).isEmpty();
+	return not self.getWorkflow().languages.exists(l | l.isPython());
 }
 
 operation Workflow getPackageName(lang : String) {

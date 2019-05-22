@@ -32,9 +32,9 @@ import org.eclipse.epsilon.flexmi.FlexmiResourceFactory;
 
 public class GenerateBaseClasses {
 
-	// FIXME automate language-specific generator enabling
-	// enum Languages {put enums in}
-
+	//FIXME automate language-specific generator enabling
+	//enum Languages {put enums in}
+	
 	protected IEolModule module;
 	protected List<Variable> parameters = new ArrayList<>();
 
@@ -76,8 +76,8 @@ public class GenerateBaseClasses {
 
 	public void execute() throws Exception {
 
-		//
-
+		// 
+		
 		module = createModule();
 		module.parse(getFileURI("crossflow.egx"));
 
@@ -98,11 +98,11 @@ public class GenerateBaseClasses {
 		result = execute(module);
 
 		module.getContext().getModelRepository().dispose();
-
-		// TODO is there a better way to add languages other than manually?
-
+		
+		//TODO is there a better way to add languages other than manually?
+		
 		module = createModule();
-		module.parse(getFileURI("python/crossflow-python.egx"));
+		module.parse(getFileURI("python/crossflow.egx"));
 
 		if (module.getParseProblems().size() > 0) {
 			System.err.println("Parse errors occured...");

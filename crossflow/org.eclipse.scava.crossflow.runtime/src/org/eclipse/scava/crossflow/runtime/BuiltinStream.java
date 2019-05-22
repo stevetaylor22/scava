@@ -100,7 +100,7 @@ public class BuiltinStream<T extends Serializable> implements Stream {
 			ex.printStackTrace();
 		}
 	}
-
+	
 	@Override
 	public boolean isBroadcast() {
 		return broadcast;

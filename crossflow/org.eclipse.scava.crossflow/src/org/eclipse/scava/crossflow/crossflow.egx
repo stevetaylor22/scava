@@ -1,7 +1,7 @@
 rule Workflow2Class 
 	transform w : Workflow {
 	
-	parameters : Map{"w" = w,"package" = w.getPackageName(), "needsConfiguration" = w.needsConfiguration()}
+	parameters : Map{"w" = w,"package" = w.getPackageName(), "needsConfiguration" = w.tasks.exists(t | not t.configurations.isEmpty())}
 	
 	template : "workflow2class.egl"
 	
@@ -11,7 +11,7 @@ rule Workflow2Class
 rule Workflow2ConfigurationSource 
 	transform w : Workflow {
 	
-	guard : w.needsConfiguration()
+	guard : w.tasks.exists(t | not t.configurations.isEmpty())
 	
 	parameters : Map{"w" = w,"package" = w.getPackageName()}
 	
@@ -80,7 +80,7 @@ rule CsvSink2Sink
 rule CommitmentTask2BaseClass 
 	transform t : CommitmentTask {
 	
-	guard : not t.language.isDefined() or t.language.isJava()
+	guard : t.isJavaTask()
 	
 	parameters : Map{"w" = t.eContainer(),"package" = t.eContainer().getPackageName()}
 	
@@ -93,7 +93,7 @@ rule CommitmentTask2BaseClass
 rule OpinionatedTask2BaseClass 
 	transform t : OpinionatedTask {
 	
-	guard : not t.language.isDefined() or t.language.isJava()
+	guard : t.isJavaTask()
 	
 	parameters : Map{"w" = t.eContainer(),"package" = t.eContainer().getPackageName()}
 	
@@ -106,7 +106,7 @@ rule OpinionatedTask2BaseClass
 rule Task2BaseClass 
 	transform t : Task {
 	
-	guard : not t.language.isDefined() or t.language.isJava()
+	guard : t.isJavaTask()
 	
 	parameters : Map{"w" = t.eContainer(),"package" = t.eContainer().getPackageName()}
 	
@@ -119,7 +119,7 @@ rule Task2BaseClass
 rule Task2ImplClass 
 	transform t : Task {
 	
-	guard : not t.language.isDefined() or t.language.isJava()	
+	guard :	t.isJavaTask()	
 		
 	parameters : Map{"w" = t.eContainer(),"package" = t.eContainer().getPackageName()}
 	
@@ -159,13 +159,14 @@ operation Any getPath() {
 	var lang = workflow.languages.select(l|l.isJava());
 	var langExists = not lang.isEmpty;
 
-	var path = "";
+	var path = "src-gen/";
 	
-	if(langExists) path = lang.first.genOutputFolder + "/";
-	else path = "src-gen/";
+	if (langExists and lang.first.genOutputFolder.isDefined()) {
+		path = lang.first.genOutputFolder + "/";
+	}
 	
 	path = path + workflow.getPackageName().replaceAll("\\.", "/") + "/";
-
+	
 	return path;
 }
 
@@ -176,10 +177,11 @@ operation Any getImplPath() {
 	var lang = workflow.languages.select(l|l.isJava());
 	var langExists = not lang.isEmpty;
 		
-	var path = "";
+	var path = "src/";
 		
-	if(langExists) path = lang.first.outputFolder + "/";
-	else path = "src/";
+	if (langExists and lang.first.outputFolder.isDefined()) {
+		path = lang.first.outputFolder + "/";
+	}
 	
 	path = path + workflow.getPackageName().replaceAll("\\.", "/") + "/";
 
@@ -197,10 +199,10 @@ operation Workflow getPackageName() {
 	return package;
 }
 
-operation Workflow needsConfiguration() : Boolean {
-	return self.tasks.exists(t | t.needsConfiguration);
-}
-
 operation Language isJava() : Boolean {
 	return self.name.toLowerCase()=="java";
+}
+
+operation Task isJavaTask() {
+	return self.languages.isEmpty() or self.languages.exists(l | l.isJava());
 }

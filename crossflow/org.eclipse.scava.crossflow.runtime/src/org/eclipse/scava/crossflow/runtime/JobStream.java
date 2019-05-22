@@ -73,9 +73,14 @@ public abstract class JobStream<T extends Job> implements Stream {
 	
 	@Override
 	public Collection<String> getDestinationNames() {
-		return post.values().stream()
-			.map(ActiveMQDestination::getPhysicalName)
-			.collect(Collectors.toList());
+		List<String> ret = new LinkedList<String>();
+		for (ActiveMQDestination d : pre.values())
+			ret.add(d.getPhysicalName());
+		for (ActiveMQDestination d : destination.values())
+			ret.add(d.getPhysicalName());
+		for (ActiveMQDestination d : post.values())
+			ret.add(d.getPhysicalName());
+		return ret;
 	}
 	
 	@Override

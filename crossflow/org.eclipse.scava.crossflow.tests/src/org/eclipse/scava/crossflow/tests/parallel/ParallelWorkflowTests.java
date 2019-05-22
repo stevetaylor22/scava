@@ -287,7 +287,8 @@ public class ParallelWorkflowTests extends WorkflowTests {
 					maxQueueSize = streamSize > maxQueueSize ? streamSize : maxQueueSize;
 				} catch (Throwable e) {
 					// e.printStackTrace();
-					failures.add(new AbstractMap.SimpleEntry<>(streamSize, statusBasedSize));
+					if(!workflow.isTerminating()) // during termination the number of subscribers is inconsistent so ignore it
+						failures.add(new AbstractMap.SimpleEntry<Long, Long>(streamSize, statusBasedSize));
 				}
 			}
 		};
@@ -343,7 +344,8 @@ public class ParallelWorkflowTests extends WorkflowTests {
 					System.out.println(subs + " == " + (1 + workflow.getParallelization()));
 					assertEquals(subs, 1 + workflow.getParallelization());
 				} catch (Throwable e) {
-					failures.add(new AbstractMap.SimpleEntry<>(subs, ((long) 2)));
+					if(!workflow.isTerminating()) // during termination the number of subscribers is inconsistent so ignore it
+						failures.add(new AbstractMap.SimpleEntry<Long, Long>(subs, ((long) 2)));
 				}
 			}
 		};
@@ -361,7 +363,7 @@ public class ParallelWorkflowTests extends WorkflowTests {
 
 		waitFor(workflow);
 
-		assertEquals(0, con.failures.size());
+		assertEquals("ParallelWorkflowTests failures: " + con.failures, 0, con.failures.size());
 	}
 
 }
