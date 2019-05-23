@@ -340,7 +340,7 @@ public abstract class Workflow {
 										activeTimers.remove(taskName);
 										//
 										long delayedtime = System.currentTimeMillis();
-										String[] dSplit = displayedTaskStatuses.get(taskName).split(":");
+										//String[] dSplit = displayedTaskStatuses.get(taskName).split(":");
 										if (waitingTaskStatuses.containsKey(taskName) && (delayedtime
 												- waitingTaskStatuses.get(taskName) > taskChangePeriod)) {
 											waitingTaskStatuses.remove(taskName);
@@ -1043,7 +1043,6 @@ public abstract class Workflow {
 	 * Waits until {@link #hasTerminated()} return true.
 	 */
 	public synchronized void awaitTermination() {
-		// TODO: test
 		while (!terminated) {
 			try {
 				wait();
