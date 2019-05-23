@@ -1,7 +1,6 @@
 package org.eclipse.scava.crossflow.runtime;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import javax.jms.*;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.ActiveMQSession;
@@ -73,7 +72,7 @@ public abstract class JobStream<T extends Job> implements Stream {
 	
 	@Override
 	public Collection<String> getDestinationNames() {
-		List<String> ret = new LinkedList<String>();
+		List<String> ret = new ArrayList<>(pre.size() + destination.size() + post.size());
 		for (ActiveMQDestination d : pre.values())
 			ret.add(d.getPhysicalName());
 		for (ActiveMQDestination d : destination.values())

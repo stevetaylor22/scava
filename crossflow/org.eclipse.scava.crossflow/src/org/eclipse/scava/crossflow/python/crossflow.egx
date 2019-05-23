@@ -144,16 +144,11 @@ operation Any appliesTo() : Boolean {
 }
 
 operation Workflow getPackageName(lang : String) {
-	var langs = self.languages.select(l | l.name == lang);
-	var langExists = not langs.isEmpty;
-
-	var package = self.name.ftlc;
-	
-	if(langExists) package = langs.first.package;
-	
-	return package;
+	var lang = self.languages.selectOne(l | l.name == lang);
+	if (lang.isDefined()) return langs.first.package;
+	else return self.name.ftlc();
 }
 
 operation Language isPython() : Boolean {
-	return self.name.toLowerCase=="python";
+	return self.name.toLowerCase == "python";
 }

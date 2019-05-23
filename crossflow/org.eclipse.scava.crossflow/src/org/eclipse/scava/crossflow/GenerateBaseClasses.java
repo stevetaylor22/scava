@@ -26,6 +26,7 @@ import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.epsilon.eol.IEolModule;
 import org.eclipse.epsilon.eol.exceptions.EolRuntimeException;
 import org.eclipse.epsilon.eol.exceptions.models.EolModelLoadingException;
+import org.eclipse.epsilon.eol.execute.context.IEolContext;
 import org.eclipse.epsilon.eol.execute.context.Variable;
 import org.eclipse.epsilon.eol.models.IModel;
 import org.eclipse.epsilon.eol.models.IRelativePathResolver;
@@ -53,55 +54,33 @@ public class GenerateBaseClasses {
 		execute();
 	}
 
+	public void execute(String language) throws Exception {
+		IEolContext context = (module = createModule()).getContext();
+		module.parse(getFileURI(language));
+		List<ParseProblem> parseProblems = module.getParseProblems();
+		
+		if (parseProblems.size() > 0) {
+			System.err.println("Parse errors occured...");
+			for (ParseProblem problem : parseProblems) {
+				System.err.println(problem);
+			}
+			return;
+		}
+
+		IModel[] modelsArr = getModels().toArray(new IModel[0]);
+		
+		context.getModelRepository().addModels(modelsArr);
+		context.getFrameStack().put(parameters);
+
+		result = execute(module);
+
+		module.getContext().getModelRepository().dispose();
+	}
+	
 	public void execute() throws Exception {
-
-		// 
-		
-		module = createModule();
-		module.parse(getFileURI("crossflow.egx"));
-
-		if (module.getParseProblems().size() > 0) {
-			System.err.println("Parse errors occured...");
-			for (ParseProblem problem : module.getParseProblems()) {
-				System.err.println(problem.toString());
-			}
-			return;
-		}
-
-		for (IModel model : getModels()) {
-			module.getContext().getModelRepository().addModel(model);
-		}
-
-		module.getContext().getFrameStack().put(parameters);
-
-		result = execute(module);
-
-		module.getContext().getModelRepository().dispose();
-		
+		execute("crossflow.egx");
+		execute("python/crossflow.egx");
 		//TODO is there a better way to add languages other than manually?
-		
-		module = createModule();
-		module.parse(getFileURI("python/crossflow.egx"));
-
-		if (module.getParseProblems().size() > 0) {
-			System.err.println("Parse errors occured...");
-			for (ParseProblem problem : module.getParseProblems()) {
-				System.err.println(problem.toString());
-			}
-			return;
-		}
-
-		for (IModel model : getModels()) {
-			module.getContext().getModelRepository().addModel(model);
-		}
-
-		for (Variable parameter : parameters) {
-			module.getContext().getFrameStack().put(parameter);
-		}
-
-		result = execute(module);
-
-		module.getContext().getModelRepository().dispose();
 	}
 
 	protected Object execute(IEolModule module) throws EolRuntimeException {
@@ -124,7 +103,7 @@ public class GenerateBaseClasses {
 	}
 
 	public List<IModel> getModels() throws Exception {
-		List<IModel> models = new ArrayList<IModel>();
+		List<IModel> models = new ArrayList<>(2);
 		models.add(createAndLoadAnEmfModel("org.eclipse.scava.crossflow",
 				modelRelativePath, "Model", true,
 				false, false));
